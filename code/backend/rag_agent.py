@@ -1,0 +1,304 @@
+"""
+RAG Agent with MCP and Skills
+
+This agent combines:
+1. RAG - Knowledge base retrieval for IT help desk
+2. MCP - Web search via Tavily for current information
+3. Skills - Dynamic expertise loading for specialized tasks
+"""
+
+import logging
+import os
+from datetime import datetime
+from pathlib import Path
+
+from dotenv import load_dotenv
+from langchain.agents import create_agent
+from langchain_classic.retrievers import ContextualCompressionRetriever
+from langchain_classic.text_splitter import RecursiveCharacterTextSplitter
+from langchain_classic.tools.retriever import create_retriever_tool
+from langchain_community.document_loaders import DirectoryLoader, TextLoader
+from langchain_community.vectorstores import FAISS
+from langchain_core.tools import tool
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_nvidia_ai_endpoints import ChatNVIDIA, NVIDIAEmbeddings, NVIDIARerank
+
+# 获取项目根目录（更稳健的方式）
+APP_PATH = Path(__file__).resolve()
+PROJECT_ROOT = APP_PATH.parent.parent.parent
+
+# Load environment variables
+ENV_PATH = PROJECT_ROOT / ".env"
+load_dotenv(ENV_PATH)
+
+# 配置 logging
+LOG_DIR = PROJECT_ROOT / "storage" / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+# 配置根 logger
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(
+            LOG_DIR / f"backend_{datetime.now().strftime('%Y%m%d')}.log",
+            encoding="utf-8",
+        ),
+        logging.StreamHandler(),
+    ],
+)
+
+_LOGGER = logging.getLogger(__name__)
+
+# 打印路径信息帮助调试
+_LOGGER.info(f"APP_PATH: {APP_PATH}")
+_LOGGER.info(f"PROJECT_ROOT: {PROJECT_ROOT}")
+_LOGGER.info(f"ENV_PATH: {ENV_PATH}")
+_LOGGER.info(f"LOG_DIR: {LOG_DIR}")
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+# Data Ingestion Configuration
+DATA_DIR = PROJECT_ROOT / "data" / "it-kb-articles"
+SKILLS_DIR = PROJECT_ROOT / "skills"
+_LOGGER.info(f"DATA_DIR: {DATA_DIR}")
+_LOGGER.info(f"SKILLS_DIR: {SKILLS_DIR}")
+CHUNK_SIZE = 800
+CHUNK_OVERLAP = 120
+
+# Model Configuration
+LLM_MODEL = "nvidia/nemotron-3-super-120b-a12b"
+RETRIEVER_RERANK_MODEL = "nvidia/llama-nemotron-rerank-1b-v2"
+RETRIEVER_EMBEDDING_MODEL = "nvidia/llama-nemotron-embed-1b-v2"
+
+# API Keys
+TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "")
+
+# =============================================================================
+# PART 1: RAG - Knowledge Base Retrieval
+# =============================================================================
+
+# Read the data
+_LOGGER.info(f"Reading knowledge base data from {DATA_DIR}")
+data_loader = DirectoryLoader(
+    DATA_DIR,
+    glob="**/*",
+    loader_cls=TextLoader,
+    show_progress=True,
+)
+docs = data_loader.load()
+
+# Split the data into chunks and ingest into FAISS vector database
+_LOGGER.info(f"Ingesting {len(docs)} documents into FAISS vector database.")
+
+# EXERCISE: Create the text splitter with chunk size and overlap parameters.
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP
+)
+
+chunks = splitter.split_documents(docs)
+
+# EXERCISE: Create the embeddings model. Set truncate to 'END'.
+embeddings = NVIDIAEmbeddings(
+    model=RETRIEVER_EMBEDDING_MODEL,
+    truncate="END",
+    api_key=os.environ.get("NVIDIA_API_KEY"),
+)
+
+vectordb = FAISS.from_documents(chunks, embeddings)
+
+# Create a document retriever and reranker
+kb_retriever = vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 6})
+
+# EXERCISE: Create the reranker
+reranker = NVIDIARerank(
+    model=RETRIEVER_RERANK_MODEL, api_key=os.environ.get("NVIDIA_API_KEY")
+)
+
+# Combine those to create the final document retriever
+RETRIEVER = ContextualCompressionRetriever(
+    base_retriever=kb_retriever,
+    base_compressor=reranker,
+)
+
+# Create the retriever tool for agentic use
+RETRIEVER_TOOL = create_retriever_tool(
+    retriever=RETRIEVER,
+    name="company_llc_it_knowledge_base",
+    description=(
+        "Search the internal IT knowledge base for Company LLC IT related questions and policies."
+    ),
+)
+
+# =============================================================================
+# PART 2A: MCP (Remote Server) - Web Search Tool via MCP Protocol
+# =============================================================================
+# This demonstrates connecting to Tavily's hosted MCP server.
+# No local server installation required - just connect via stdio transport.
+
+# EXERCISE: Configure the MCP connection to Tavily's remote MCP server
+# Hint: set 'transport' to 'stdio' and 'command' to 'npx'.
+# Hint: set 'args' to ['-y', 'mcp-remote', f'https://mcp.tavily.com/mcp/?tavilyApiKey={TAVILY_API_KEY}']
+MCP_CONFIG = {
+    "tavily": {
+        "transport": "stdio",
+        "command": "npx",
+        "args": [
+            "-y",
+            "mcp-remote",
+            f"https://mcp.tavily.com/mcp/?tavilyApiKey={TAVILY_API_KEY}",
+        ],
+    }
+}
+
+
+@tool
+async def web_search(query: str) -> str:
+    """Search the web for current information on any topic.
+
+    Use this when:
+    - The knowledge base doesn't have the answer
+    - User asks about current events or recent information
+    - User needs information beyond internal IT policies
+    """
+    try:
+        client = MultiServerMCPClient(MCP_CONFIG)
+        async with client.session("tavily") as session:
+            # EXERCISE: Call the Tavily search tool (tavily_search) via MCP
+            result = await session.call_tool("tavily_search", {"query": query})
+
+            if result and result.content:
+                return result.content[0].text
+            return "No results found."
+    except Exception as e:
+        return f"Search failed: {str(e)}"
+
+
+# =============================================================================
+# PART 2B: MCP (local server) - Web Search Tool
+# =============================================================================
+
+# EXERCISE (Optional): Swap to the below implementation to use a local MCP server
+# 1. Comment out PART 2A
+# 2. Uncomment PART 2B below. Save the file.
+# 3. Run the local MCP server: `cd code/2-agentic-rag && uvicorn mcp_server:app --reload --port 8000`
+# 4. Restart the agent: `cd code/2-agentic-rag && langgraph dev`
+# 5. Test the agent in the Simple Agents Client.
+
+# @tool
+# async def web_search(query: str) -> str:
+#     """
+#     Search the web for current information using Tavily (via persistent SSE server).
+#     """
+#     from langchain_mcp_adapters.client import MultiServerMCPClient
+
+#     # Configuration for SSE (HTTP) connection
+#     mcp_config = {
+#         "tavily": {
+#             "transport": "sse",
+#             "url": "http://localhost:8000/sse"
+#         }
+#     }
+
+#     try:
+#         # Connect to the running server
+#         client = MultiServerMCPClient(mcp_config)
+#         async with client.session("tavily") as session:
+#             result = await session.call_tool("tavily_search", {"query": query})
+
+#             if result and result.content:
+#                 return result.content[0].text
+#             return "No results found."
+
+#     except Exception as e:
+#         # Fallback message that actually helps you debug
+#         return f"Search failed. Is the server running? (Error: {str(e)})"
+
+# =============================================================================
+# PART 3: SKILLS - Dynamic Expertise Loading
+# =============================================================================
+
+
+def load_skill(skill_name: str) -> str:
+    """Load a skill from the skills directory."""
+    skill_path = SKILLS_DIR / skill_name / "SKILL.md"
+    if skill_path.exists():
+        return skill_path.read_text()
+    return f"Skill '{skill_name}' not found."
+
+
+def list_skills() -> list[str]:
+    """List all available skills."""
+    if not SKILLS_DIR.exists():
+        return []
+    return [
+        d.name for d in SKILLS_DIR.iterdir() if d.is_dir() and (d / "SKILL.md").exists()
+    ]
+
+
+@tool
+def get_skill(skill_name: str) -> str:
+    """Load a specific skill to gain expertise in that area.
+
+    Available skills can be found using list_available_skills.
+    Skills provide specialized instructions for tasks like code review,
+    technical writing, etc.
+    """
+    # EXERCISE: Load the skill
+    return load_skill(skill_name)
+
+
+@tool
+def list_available_skills() -> list[str]:
+    """List all available skills that can be loaded.
+
+    Returns a list of skill names. Use get_skill(name) to load one.
+    """
+    # EXERCISE: Return the list of skills
+    return list_skills()
+
+
+# =============================================================================
+# AGENT SETUP
+# =============================================================================
+
+# EXERCISE: Define the LLM model. Set temperature to 0.6 and max_tokens to 4096.
+llm = ChatNVIDIA(model=LLM_MODEL, temperature=0.6, max_tokens=4096)
+
+# Define the system prompt with all capabilities
+SYSTEM_PROMPT = """You are an IT help desk support agent with enhanced capabilities.
+
+## Your Tools
+
+1. **company_llc_it_knowledge_base** - Search internal IT, software, or company policies and procedures
+   - Use for: Password resets, errors, request/access issues, technology or software issues (VPN/HPC/VM/email), company policies, etc.
+   - Cite with [KB]
+
+2. **web_search** - Search the web for current information
+   - Use for: Questions beyond internal policies, current events, external resources
+   - Cite with [Web]
+
+3. **list_available_skills** - See what specialized skills you can load
+   - Use when: User needs help with a specialized task
+
+4. **get_skill** - Load a skill to gain expertise
+   - Use when: You need specialized instructions (e.g., code review, technical writing)
+
+## Guidelines
+
+- Try the knowledge base FIRST for company-related or IT-related questions or issues
+- Use web search when KB doesn't have the answer or for current information
+- Load skills when doing specialized tasks
+- Always cite your sources: [KB] for knowledge base, [Web] for web results
+- Be concise and helpful
+"""
+
+# EXERCISE: Create the ReAct agent with tools. Define 'model', 'tools', and 'prompt'.
+# NOTE: Update this definition as you progress through the module — each section adds new tools.
+AGENT = create_agent(
+    model=llm,
+    tools=[RETRIEVER_TOOL, web_search, get_skill, list_available_skills],
+    system_prompt=SYSTEM_PROMPT,
+)

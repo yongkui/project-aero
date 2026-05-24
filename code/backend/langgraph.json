@@ -1,0 +1,7 @@
+{
+  "dependencies": "../../requirements.txt",
+  "graphs": {
+    "IT Assistant": "rag_agent:AGENT"
+  },
+  "env": ["../../.env"]
+}
