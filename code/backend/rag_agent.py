@@ -208,41 +208,31 @@ async def web_search(query: str) -> str:
 # =============================================================================
 # Part 3: Skills - Dynamic Expertise Loading
 # =============================================================================
-def load_skill(skill_name: str) -> str:
-    """Load a skill from the skills directory."""
+@tool
+def get_skill(skill_name: str) -> str:
+    """Load a specific skill to gain expertise in that area.
+
+    Available skills can be found using list_skills.
+    Skills provide specialized instructions for tasks like code review,
+    technical writing, etc.
+    """
     skill_path = SKILLS_DIR / skill_name / "SKILL.md"
     if skill_path.exists():
         return skill_path.read_text()
     return f"Skill '{skill_name}' not found."
 
 
+@tool
 def list_skills() -> list[str]:
-    """List all available skills."""
+    """List all available skills that can be loaded.
+
+    Returns a list of skill names. Use get_skill(name) to load one.
+    """
     if not SKILLS_DIR.exists():
         return []
     return [
         d.name for d in SKILLS_DIR.iterdir() if d.is_dir() and (d / "SKILL.md").exists()
     ]
-
-
-@tool
-def get_skill(skill_name: str) -> str:
-    """Load a specific skill to gain expertise in that area.
-
-    Available skills can be found using list_available_skills.
-    Skills provide specialized instructions for tasks like code review,
-    technical writing, etc.
-    """
-    return load_skill(skill_name)
-
-
-@tool
-def list_available_skills() -> list[str]:
-    """List all available skills that can be loaded.
-
-    Returns a list of skill names. Use get_skill(name) to load one.
-    """
-    return list_skills()
 
 
 # =============================================================================
@@ -374,7 +364,7 @@ SYSTEM_PROMPT = """You are AERO, AI-Enabled Regional Operations Agent - an IT he
    - Use for: Questions beyond internal policies, current events, external resources
    - Cite with [Web]
 
-3. **list_available_skills** - See what specialized skills you can load
+3. **list_skills** - See what specialized skills you can load
    - Use when: User needs help with a specialized task
 
 4. **get_skill** - Load a skill to gain expertise
@@ -428,7 +418,7 @@ AGENT = create_agent(
         RETRIEVER_TOOL,
         web_search,
         get_skill,
-        list_available_skills,
+        list_skills,
         servicenow_create_ticket,
         servicenow_assign_ticket,
         servicenow_close_ticket,

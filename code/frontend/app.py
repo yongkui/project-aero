@@ -37,7 +37,7 @@ PROJECT_ROOT = APP_PATH.parent.parent.parent
 sys.path.append(str(PROJECT_ROOT / "code" / "backend"))
 
 # Import enterprise services from services directory
-from services import create_ticket, assign_ticket, close_ticket
+from services import create_ticket, assign_ticket, close_ticket, list_tickets
 
 # Configure logging
 LOG_DIR = PROJECT_ROOT / "storage" / "logs"
@@ -473,11 +473,18 @@ with st.sidebar:
         st.sidebar.markdown("---")
         st.sidebar.markdown("### 🎫 Pending Tickets")
         
-        # Pending Tickets Data
+        # Load pending tickets from ServiceNow mock service
+        all_tickets = list_tickets()
         pending_tickets = [
-            {"id": "INC-1001", "type": "Password Reset", "priority": "High", "requester": "john.doe@nvidia.com", "created": "2026-05-25 09:15", "description": "Cannot reset password, getting error when trying to reset via Okta"},
-            {"id": "INC-1002", "type": "VPN Issue", "priority": "Medium", "requester": "jane.smith@nvidia.com", "created": "2026-05-25 10:30", "description": "VPN connection drops every 5 minutes when working from home"},
-            {"id": "INC-1003", "type": "Software Install", "priority": "Low", "requester": "bob.wilson@nvidia.com", "created": "2026-05-25 11:45", "description": "Need help installing Microsoft Teams on laptop"},
+            {
+                "id": ticket["ticket_id"],
+                "type": ticket["issue_type"],
+                "priority": ticket["priority"],
+                "requester": ticket["user_email"],
+                "created": ticket["created_at"],
+                "description": ticket.get("description", "No description provided")
+            }
+            for ticket in all_tickets if ticket["status"] != "Closed"
         ]
         
         # Ticket selection
@@ -1083,7 +1090,7 @@ def handle_closure_action(action_type):
     
     elif action_type == "create_ticket":
         issue_summary = st.session_state.last_user_input[:100] if st.session_state.get("last_user_input") else "IT Support Request"
-        ticket = create_ticket("IT Support Request", "user@nvidia.com")
+        ticket = create_ticket("IT Support Request", "user@nvidia.com", issue_summary)
         assign_result = assign_ticket(ticket["ticket_id"])
         
         ticket_content = f"✅ **ServiceNow Ticket #{ticket['ticket_id']} has been created successfully.**\n\n"
