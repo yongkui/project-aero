@@ -362,7 +362,7 @@ def observability_get_network_status(device_id: str = "default") -> dict:
 # Agent Setup
 # =============================================================================
 
-SYSTEM_PROMPT = """You are Project AERO, an IT help desk support agent with enhanced capabilities."""
+SYSTEM_PROMPT = """You are Project AERO, AI-Enabled IT Operations Agent - an IT help desk support agent with enhanced capabilities.
 
 ## Your Tools
 
