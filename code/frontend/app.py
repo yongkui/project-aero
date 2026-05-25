@@ -827,8 +827,8 @@ if IS_ENGINEER:
                 # Update ticket with diagnostic data
                 st.markdown(f"✅ **Diagnostic results attached to {selected_ticket['id']}**")
     else:
-        # No ticket selected - show default message only if no chat history
-        if not st.session_state.history.get(ASSISTANT_ID):
+        history = st.session_state.history.get(ASSISTANT_ID, [])
+        if not history or len(history) == 0:
             st.info("👈 Select a ticket from the left sidebar to begin analysis.")
 
 # Render historical messages
