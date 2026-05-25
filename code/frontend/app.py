@@ -830,35 +830,34 @@ if IS_ENGINEER:
         history = st.session_state.history.get(ASSISTANT_ID, [])
         if not USER_INPUT and (not history or len(history) == 0):
             st.info("👈 Select a ticket from the left sidebar to begin analysis.")
+
+# Render historical messages
+for msg in st.session_state.history.get(ASSISTANT_ID, []):
+    reasoning_contents, message_contents = _create_message_box(
+        msg["role"], msg.get("name")
+    )
+
+    if "think" in msg and msg["think"]:
+        reasoning_expander = reasoning_contents.expander("Reasoning", expanded=False)
+        reasoning_expander.markdown(msg["think"])
+
+    if msg.get("content"):
+        message_contents.markdown(msg["content"])
     
-    # Render historical messages
-    for msg in st.session_state.history.get(ASSISTANT_ID, []):
-            
-        reasoning_contents, message_contents = _create_message_box(
-            msg["role"], msg.get("name")
-        )
-
-        if "think" in msg and msg["think"]:
-            reasoning_expander = reasoning_contents.expander("Reasoning", expanded=False)
-            reasoning_expander.markdown(msg["think"])
-
-        if msg.get("content"):
-            message_contents.markdown(msg["content"])
+    # Display ticket details if available
+    if msg.get("ticket_details"):
+        ticket = msg["ticket_details"]
+        ticket_logs = f"**Ticket Details:**\n\n"
+        ticket_logs += f"- **Ticket ID:** {ticket['ticket_id']}\n"
+        ticket_logs += f"- **Issue Type:** {ticket['issue_type']}\n"
+        ticket_logs += f"- **Priority:** {ticket['priority']}\n"
+        ticket_logs += f"- **Status:** {ticket['status']}\n"
+        ticket_logs += f"- **Assigned Group:** {ticket['assigned_group']}\n"
+        ticket_logs += f"- **Created At:** {ticket['created_at']}\n"
+        ticket_logs += f"- **Description:** {ticket['description']}"
         
-        # Display ticket details if available
-        if msg.get("ticket_details"):
-            ticket = msg["ticket_details"]
-            ticket_logs = f"**Ticket Details:**\n\n"
-            ticket_logs += f"- **Ticket ID:** {ticket['ticket_id']}\n"
-            ticket_logs += f"- **Issue Type:** {ticket['issue_type']}\n"
-            ticket_logs += f"- **Priority:** {ticket['priority']}\n"
-            ticket_logs += f"- **Status:** {ticket['status']}\n"
-            ticket_logs += f"- **Assigned Group:** {ticket['assigned_group']}\n"
-            ticket_logs += f"- **Created At:** {ticket['created_at']}\n"
-            ticket_logs += f"- **Description:** {ticket['description']}"
-            
-            ticket_expander = message_contents.expander(f"ServiceNow Ticket {ticket['ticket_id']} created", expanded=True)
-            ticket_expander.markdown(ticket_logs)
+        ticket_expander = message_contents.expander(f"ServiceNow Ticket {ticket['ticket_id']} created", expanded=True)
+        ticket_expander.markdown(ticket_logs)
 
 # ==============================================================================
 # Handle User Input
