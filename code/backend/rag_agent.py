@@ -161,12 +161,12 @@ _LOGGER.info("Contextual compression retriever configured")
 
 RETRIEVER_TOOL = create_retriever_tool(
     retriever=RETRIEVER,
-    name="company_llc_it_knowledge_base",
+    name="it_knowledge_base",
     description=(
-        "Search the internal IT knowledge base for Company LLC IT related questions and policies."
+        "Search the internal IT knowledge base for IT related questions, policies, procedures and troubleshooting guides."
     ),
 )
-_LOGGER.info("Knowledge base tool created: company_llc_it_knowledge_base")
+_LOGGER.info("Knowledge base tool created: it_knowledge_base")
 
 # =============================================================================
 # Part 2: MCP - Web Search Tool
@@ -366,7 +366,7 @@ SYSTEM_PROMPT = """You are Project AERO, NVIDIA China IT Operations Agent - an I
 
 ## Your Tools
 
-1. **company_llc_it_knowledge_base** - Search internal IT, software, or company policies and procedures
+1. **it_knowledge_base** - Search internal IT, software, or company policies and procedures
    - Use for: Password resets, errors, request/access issues, technology or software issues (VPN/HPC/VM/email), company policies, etc.
    - Cite with [KB]
 
