@@ -1,10 +1,11 @@
 """
-RAG Agent with MCP and Skills
+Project AERO - RAG Agent with MCP and Skills
 
 Combines:
 1. RAG - Knowledge base retrieval for IT help desk
 2. MCP - Web search via Tavily for current information
 3. Skills - Dynamic expertise loading for specialized tasks
+4. Enterprise Services - Mock integrations for ServiceNow, Jira, Identity, and Observability
 """
 
 import logging
@@ -22,6 +23,17 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.tools import tool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_nvidia_ai_endpoints import ChatNVIDIA, NVIDIAEmbeddings, NVIDIARerank
+
+# Import enterprise services
+from services import (
+    create_ticket,
+    close_ticket,
+    assign_ticket,
+    create_engineering_task,
+    verify_user_identity,
+    reset_ad_password,
+    get_device_network_status,
+)
 
 # =============================================================================
 # Path Configuration
@@ -198,11 +210,124 @@ def list_available_skills() -> list[str]:
 
 
 # =============================================================================
+# Part 4: Enterprise Service Tools
+# =============================================================================
+
+@tool
+def servicenow_create_ticket(issue_type: str, user_email: str) -> dict:
+    """Create a ServiceNow ticket for IT support requests.
+
+    Production: Replace with real ServiceNow REST API call.
+
+    Args:
+        issue_type: The type of issue (e.g., "Password Reset", "Hardware Issue")
+        user_email: The email address of the user reporting the issue
+
+    Returns:
+        Ticket object with ID, status, and other details
+    """
+    return create_ticket(issue_type, user_email)
+
+
+@tool
+def servicenow_assign_ticket(ticket_id: str, group: str = "China L1 Support") -> str:
+    """Assign a ServiceNow ticket to a support group.
+
+    Production: Replace with real ServiceNow API.
+
+    Args:
+        ticket_id: The ID of the ticket to assign (e.g., "INC-1001")
+        group: The support group to assign the ticket to
+
+    Returns:
+        Assignment confirmation message
+    """
+    return assign_ticket(ticket_id, group)
+
+
+@tool
+def servicenow_close_ticket(ticket_id: str, resolution: str) -> str:
+    """Close a ServiceNow ticket with a resolution.
+
+    Production: Replace with real ServiceNow API.
+
+    Args:
+        ticket_id: The ID of the ticket to close (e.g., "INC-1001")
+        resolution: The resolution description
+
+    Returns:
+        Closure confirmation message
+    """
+    return close_ticket(ticket_id, resolution)
+
+
+@tool
+def jira_create_engineering_task(summary: str, priority: str = "Medium") -> dict:
+    """Create an engineering task in Jira for escalation.
+
+    Production: Replace with real Jira REST API call.
+
+    Args:
+        summary: The task summary/description
+        priority: Task priority (Low, Medium, High, Critical)
+
+    Returns:
+        Jira task object with ID, key, status, and other details
+    """
+    return create_engineering_task(summary, priority)
+
+
+@tool
+def identity_verify_user(user_email: str) -> dict:
+    """Verify user identity via Active Directory.
+
+    Production: Replace with real Active Directory/LDAP API call.
+
+    Args:
+        user_email: The user's email address to verify
+
+    Returns:
+        Verification result with status and user details
+    """
+    return verify_user_identity(user_email)
+
+
+@tool
+def identity_reset_password(user_email: str) -> dict:
+    """Reset user password via Okta API.
+
+    Production: Replace with real Okta API call.
+
+    Args:
+        user_email: The user's email address
+
+    Returns:
+        Password reset result
+    """
+    return reset_ad_password(user_email)
+
+
+@tool
+def observability_get_network_status(device_id: str = "default") -> dict:
+    """Get device network status from observability system.
+
+    Production: Replace with real Grafana/Prometheus API call.
+
+    Args:
+        device_id: Optional device identifier to query
+
+    Returns:
+        Network status data with latency, throughput, and connection status
+    """
+    return get_device_network_status(device_id)
+
+
+# =============================================================================
 # Agent Setup
 # =============================================================================
 llm = ChatNVIDIA(model=LLM_MODEL, temperature=0.6, max_tokens=4096)
 
-SYSTEM_PROMPT = """You are an IT help desk support agent with enhanced capabilities.
+SYSTEM_PROMPT = """You are Project AERO, NVIDIA China IT Operations Agent - an IT help desk support agent with enhanced capabilities.
 
 ## Your Tools
 
@@ -220,17 +345,52 @@ SYSTEM_PROMPT = """You are an IT help desk support agent with enhanced capabilit
 4. **get_skill** - Load a skill to gain expertise
    - Use when: You need specialized instructions (e.g., code review, technical writing)
 
+5. **servicenow_create_ticket** - Create ServiceNow IT support tickets
+   - Use for: Logging IT incidents, service requests
+
+6. **servicenow_assign_ticket** - Assign ServiceNow tickets to support groups
+   - Use for: Routing tickets to appropriate support teams
+
+7. **servicenow_close_ticket** - Close ServiceNow tickets with resolution
+   - Use for: Completing ticket workflows
+
+8. **jira_create_engineering_task** - Create Jira engineering tasks
+   - Use for: Escalating issues to engineering teams
+
+9. **identity_verify_user** - Verify user identity via Active Directory
+   - Use for: Authentication and identity verification
+
+10. **identity_reset_password** - Reset user password via Okta
+    - Use for: Password reset requests
+
+11. **observability_get_network_status** - Get device network status
+    - Use for: Troubleshooting network connectivity issues
+
 ## Guidelines
 
 - Try the knowledge base FIRST for company-related or IT-related questions or issues
 - Use web search when KB doesn't have the answer or for current information
 - Load skills when doing specialized tasks
+- Use ServiceNow integration for ticket management
+- Use identity tools for authentication and password management
 - Always cite your sources: [KB] for knowledge base, [Web] for web results
 - Be concise and helpful
 """
 
 AGENT = create_agent(
     model=llm,
-    tools=[RETRIEVER_TOOL, web_search, get_skill, list_available_skills],
+    tools=[
+        RETRIEVER_TOOL,
+        web_search,
+        get_skill,
+        list_available_skills,
+        servicenow_create_ticket,
+        servicenow_assign_ticket,
+        servicenow_close_ticket,
+        jira_create_engineering_task,
+        identity_verify_user,
+        identity_reset_password,
+        observability_get_network_status,
+    ],
     system_prompt=SYSTEM_PROMPT,
 )
