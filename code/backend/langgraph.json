@@ -1,7 +1,10 @@
 {
   "dependencies": "../../requirements.txt",
   "graphs": {
-    "IT Assistant": "rag_agent:AGENT"
+    "IT Assistant": "./rag_agent.py:AGENT"
   },
-  "env": ["../../.env"]
+  "env": ["../../.env"],
+  "env_vars": {
+    "PYTHONPATH": "."
+  }
 }

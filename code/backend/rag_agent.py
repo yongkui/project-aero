@@ -10,6 +10,7 @@ Combines:
 
 import logging
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -24,6 +25,51 @@ from langchain_core.tools import tool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_nvidia_ai_endpoints import ChatNVIDIA, NVIDIAEmbeddings, NVIDIARerank
 
+# =============================================================================
+# Path Configuration
+# =============================================================================
+APP_PATH = Path(__file__).resolve()
+PROJECT_ROOT = APP_PATH.parent.parent.parent
+
+ENV_PATH = PROJECT_ROOT / ".env"
+
+# =============================================================================
+# Logging Configuration - Setup FIRST before any other imports
+# =============================================================================
+LOG_DIR = PROJECT_ROOT / "storage" / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+LOG_FILE = LOG_DIR / f"backend_{datetime.now().strftime('%Y%m%d')}.log"
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.handlers.clear()
+
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(formatter)
+
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setLevel(logging.INFO)
+stream_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(stream_handler)
+
+_LOGGER = logging.getLogger(__name__)
+
+_LOGGER.info("=" * 60)
+_LOGGER.info("AERO Backend Starting...")
+_LOGGER.info(f"Timestamp: {datetime.now().isoformat()}")
+_LOGGER.info("=" * 60)
+_LOGGER.info(f"APP_PATH: {APP_PATH}")
+_LOGGER.info(f"PROJECT_ROOT: {PROJECT_ROOT}")
+_LOGGER.info(f"ENV_PATH: {ENV_PATH}")
+_LOGGER.info(f"LOG_DIR: {LOG_DIR}")
+_LOGGER.info(f"LOG_FILE: {LOG_FILE}")
+
 # Import enterprise services
 from services import (
     create_ticket,
@@ -35,39 +81,9 @@ from services import (
     get_device_network_status,
 )
 
-# =============================================================================
-# Path Configuration
-# =============================================================================
-APP_PATH = Path(__file__).resolve()
-PROJECT_ROOT = APP_PATH.parent.parent.parent
-
-ENV_PATH = PROJECT_ROOT / ".env"
+_LOGGER.info("Loading environment variables...")
 load_dotenv(ENV_PATH)
-
-# =============================================================================
-# Logging Configuration
-# =============================================================================
-LOG_DIR = PROJECT_ROOT / "storage" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(
-            LOG_DIR / f"backend_{datetime.now().strftime('%Y%m%d')}.log",
-            encoding="utf-8",
-        ),
-        logging.StreamHandler(),
-    ],
-)
-
-_LOGGER = logging.getLogger(__name__)
-
-_LOGGER.info(f"APP_PATH: {APP_PATH}")
-_LOGGER.info(f"PROJECT_ROOT: {PROJECT_ROOT}")
-_LOGGER.info(f"ENV_PATH: {ENV_PATH}")
-_LOGGER.info(f"LOG_DIR: {LOG_DIR}")
+_LOGGER.info("Environment variables loaded successfully")
 
 # =============================================================================
 # Configuration
@@ -79,16 +95,26 @@ _LOGGER.info(f"SKILLS_DIR: {SKILLS_DIR}")
 
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 120
+_LOGGER.info(f"Text Splitter - Chunk Size: {CHUNK_SIZE}, Overlap: {CHUNK_OVERLAP}")
 
 LLM_MODEL = "nvidia/nemotron-3-super-120b-a12b"
 RETRIEVER_RERANK_MODEL = "nvidia/llama-nemotron-rerank-1b-v2"
 RETRIEVER_EMBEDDING_MODEL = "nvidia/llama-nemotron-embed-1b-v2"
+_LOGGER.info(f"LLM Model: {LLM_MODEL}")
+_LOGGER.info(f"Embedding Model: {RETRIEVER_EMBEDDING_MODEL}")
+_LOGGER.info(f"Rerank Model: {RETRIEVER_RERANK_MODEL}")
 
 TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "")
+nvidia_api_key_set = "SET" if os.environ.get("NVIDIA_API_KEY") else "NOT SET"
+_LOGGER.info(f"NVIDIA_API_KEY: {nvidia_api_key_set}")
+_LOGGER.info(f"TAVILY_API_KEY: {'SET' if TAVILY_API_KEY else 'NOT SET'}")
 
 # =============================================================================
 # Part 1: RAG - Knowledge Base Retrieval
 # =============================================================================
+_LOGGER.info("=" * 60)
+_LOGGER.info("Initializing RAG - Knowledge Base Retrieval")
+_LOGGER.info("=" * 60)
 _LOGGER.info(f"Reading knowledge base data from {DATA_DIR}")
 data_loader = DirectoryLoader(
     DATA_DIR,
@@ -97,32 +123,41 @@ data_loader = DirectoryLoader(
     show_progress=True,
 )
 docs = data_loader.load()
+_LOGGER.info(f"Loaded {len(docs)} documents from knowledge base")
 
-_LOGGER.info(f"Ingesting {len(docs)} documents into FAISS vector database.")
-
+_LOGGER.info(f"Splitting documents into chunks (size={CHUNK_SIZE}, overlap={CHUNK_OVERLAP})")
 splitter = RecursiveCharacterTextSplitter(
     chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP
 )
 chunks = splitter.split_documents(docs)
+_LOGGER.info(f"Created {len(chunks)} document chunks")
 
+_LOGGER.info(f"Initializing embeddings model: {RETRIEVER_EMBEDDING_MODEL}")
 embeddings = NVIDIAEmbeddings(
     model=RETRIEVER_EMBEDDING_MODEL,
     truncate="END",
     api_key=os.environ.get("NVIDIA_API_KEY"),
 )
+_LOGGER.info("Embeddings model initialized successfully")
 
+_LOGGER.info("Building FAISS vector database...")
 vectordb = FAISS.from_documents(chunks, embeddings)
+_LOGGER.info("FAISS vector database built successfully")
 
 kb_retriever = vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 6})
+_LOGGER.info("Knowledge base retriever configured")
 
+_LOGGER.info(f"Initializing rerank model: {RETRIEVER_RERANK_MODEL}")
 reranker = NVIDIARerank(
     model=RETRIEVER_RERANK_MODEL, api_key=os.environ.get("NVIDIA_API_KEY")
 )
+_LOGGER.info("Rerank model initialized successfully")
 
 RETRIEVER = ContextualCompressionRetriever(
     base_retriever=kb_retriever,
     base_compressor=reranker,
 )
+_LOGGER.info("Contextual compression retriever configured")
 
 RETRIEVER_TOOL = create_retriever_tool(
     retriever=RETRIEVER,
@@ -131,6 +166,7 @@ RETRIEVER_TOOL = create_retriever_tool(
         "Search the internal IT knowledge base for Company LLC IT related questions and policies."
     ),
 )
+_LOGGER.info("Knowledge base tool created: company_llc_it_knowledge_base")
 
 # =============================================================================
 # Part 2: MCP - Web Search Tool
@@ -325,7 +361,6 @@ def observability_get_network_status(device_id: str = "default") -> dict:
 # =============================================================================
 # Agent Setup
 # =============================================================================
-llm = ChatNVIDIA(model=LLM_MODEL, temperature=0.6, max_tokens=4096)
 
 SYSTEM_PROMPT = """You are Project AERO, NVIDIA China IT Operations Agent - an IT help desk support agent with enhanced capabilities.
 
@@ -377,6 +412,15 @@ SYSTEM_PROMPT = """You are Project AERO, NVIDIA China IT Operations Agent - an I
 - Be concise and helpful
 """
 
+_LOGGER.info("=" * 60)
+_LOGGER.info("Initializing AERO Agent")
+_LOGGER.info("=" * 60)
+_LOGGER.info(f"Initializing LLM: {LLM_MODEL}")
+llm = ChatNVIDIA(model=LLM_MODEL, temperature=0.6, max_tokens=4096)
+_LOGGER.info("LLM initialized successfully")
+
+_LOGGER.info("Defining system prompt...")
+
 AGENT = create_agent(
     model=llm,
     tools=[
@@ -394,3 +438,9 @@ AGENT = create_agent(
     ],
     system_prompt=SYSTEM_PROMPT,
 )
+
+_LOGGER.info("=" * 60)
+_LOGGER.info("AERO Agent Initialization Complete!")
+_LOGGER.info("=" * 60)
+_LOGGER.info("Ready to accept requests...")
+_LOGGER.info("Backend started successfully")

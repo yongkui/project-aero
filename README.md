@@ -1,20 +1,45 @@
 # Project AERO: AI-Enabled Regional Operations
-## Internal Codename: itechops
 
-IT Help Desk Assistant powered by RAG (Retrieval-Augmented Generation)
+Intelligent IT Operations Assistant powered by NVIDIA NIM technology.
 
 ## 🎯 Overview
 
-Project AERO is an intelligent IT support agent for NVIDIA China IT Operations that combines:
+AERO is an intelligent IT support agent for regional operations that combines:
+
+### Employee View
+![AERO IT Support Assistant - Employee View](docs/images/employee-view.png)
+
+### IT Support Engineer View
+![AERO IT Support Assistant - Engineer View](docs/images/engineer-view.png)
+
 - **RAG** - Knowledge base retrieval for IT help desk
 - **MCP** - Web search via Tavily for current information
 - **Skills** - Dynamic expertise loading for specialized tasks
 - **Enterprise Services** - Mock integrations for ServiceNow, Jira, Identity, and Observability
 
+## 🤖 NVIDIA AI Models Used
+
+This project leverages NVIDIA's state-of-the-art AI models for optimal performance:
+
+| Model Type | Model Name | Purpose |
+|------------|------------|---------|
+| **LLM** | `nvidia/nemotron-3-super-120b-a12b` | Primary language model for reasoning and response generation |
+| **Embedding** | `nvidia/llama-nemotron-embed-1b-v2` | Generate vector embeddings for RAG retrieval |
+| **Rerank** | `nvidia/llama-nemotron-rerank-1b-v2` | Re-rank search results to improve relevance |
+
+### Model Differences from NVIDIA Workshop
+
+While this project is based on NVIDIA's Build An Agent Workshop, the following modifications were made to the model configuration:
+
+- **Embedding Model**: Changed from workshop default to `nvidia/llama-nemotron-embed-1b-v2`
+- **Rerank Model**: Changed from workshop default to `nvidia/llama-nemotron-rerank-1b-v2`
+
+All models are accessed via NVIDIA AI Endpoints API.
+
 ## 📁 Project Structure
 
 ```
-itechops/
+project-aero/
 ├── code/
 │   ├── backend/           # LangGraph backend
 │   │   ├── rag_agent.py   # RAG agent implementation
@@ -30,13 +55,16 @@ itechops/
 │       └── app.py
 ├── data/
 │   └── it-kb-articles/    # IT knowledge base articles
+├── docs/
+│   └── images/            # Documentation images
 ├── skills/                # Agent skills
 │   ├── code_review/
 │   └── technical_writing/
 ├── storage/               # Runtime storage (logs, chat history)
 ├── .env                   # Environment variables
 ├── requirements.txt       # Python dependencies
-└── setup_env.sh          # Environment setup script
+├── setup_env.sh           # Environment setup script
+└── start.sh               # Quick start script
 ```
 
 ## 🚀 Quick Start
@@ -125,3 +153,26 @@ See `setup_env.sh` for complete environment configuration
 ## ℹ️ Note
 
 All enterprise service integrations are mock implementations for demonstration purposes. In production, replace these with real API calls.
+
+## 🙏 Acknowledgments
+
+This project is **based on NVIDIA's Build An Agent Workshop** (https://github.com/brevdev/workshop-build-an-agent). Core LangGraph agent orchestration and NVIDIA AI Endpoints integration follow the official workshop design patterns, and are fully adapted and customized for enterprise IT operations scenarios.
+
+### Key Changes from Original Workshop
+
+While this project builds upon the workshop foundation, significant modifications have been made:
+
+- **Dual-Role System**: Added employee and IT support engineer views with role-specific features
+- **Enterprise Integrations**: Implemented mock services for ServiceNow, Jira, Identity management, and Observability
+- **Operations Dashboard**: Added IT operational metrics display for engineers
+- **Diagnostic Tools**: Created cross-platform diagnostic script generation functionality
+- **Conversation Closure Flow**: Implemented ticket creation workflow for employees
+- **Enhanced UI**: Improved chat interface with reasoning display and conversation history management
+
+### Copyright and Usage
+
+- **NVIDIA Materials**: All original content from NVIDIA's workshop retains its original copyright and belongs to NVIDIA Corporation.
+- **Modifications**: Custom modifications and extensions in this repository are provided for educational and demonstration purposes only.
+- **Non-Commercial Use**: This project is a personal project and should not be used for commercial purposes without proper licensing.
+
+**Disclaimer**: This is not an official NVIDIA product or project. It is a personal learning project based on publicly available educational materials.

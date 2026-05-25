@@ -46,3 +46,6 @@ code/backend/.langgraph_api/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Project documentation (optional - for large/auto-generated docs)
+PROJECT_DESCRIPTION.md

@@ -1,5 +1,5 @@
 """
-Project AERO - NVIDIA China IT Operations Agent
+Project AERO - AI-Enabled Regional Operations Agent
 Internal Codename: itechops
 
 A Streamlit interface for LangGraph assistants featuring IT helpdesk capabilities.
@@ -61,9 +61,17 @@ _LOGGER.info(f"APP_PATH: {APP_PATH}")
 _LOGGER.info(f"PROJECT_ROOT: {PROJECT_ROOT}")
 _LOGGER.info(f"LOG_DIR: {LOG_DIR}")
 
-# Define chat history storage directory
+# Define chat history# History directory
 HISTORY_DIR = PROJECT_ROOT / "storage" / "chat_history"
-HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+
+# Role-specific history directories
+EMPLOYEE_HISTORY_DIR = HISTORY_DIR / "employee"
+ENGINEER_HISTORY_DIR = HISTORY_DIR / "engineer"
+
+# Create directories if they don't exist
+for dir_path in [HISTORY_DIR, EMPLOYEE_HISTORY_DIR, ENGINEER_HISTORY_DIR]:
+    dir_path.mkdir(parents=True, exist_ok=True)
+
 _LOGGER.info(f"HISTORY_DIR: {HISTORY_DIR}")
 
 # ==============================================================================
@@ -86,18 +94,33 @@ CLIENT = get_sync_client(url=BASE_URL)
 #   {"role": "tool", "content": "...", "name": "web_search"}
 # ]
 
-def load_history(assistant_id: str, thread_id: str) -> List[Dict]:
+def get_role_history_dir(is_engineer: bool) -> Path:
     """
-    Load chat history from file.
+    Get the history directory based on user role.
+
+    Args:
+        is_engineer: True if user is IT Support Engineer, False if Employee
+
+    Returns:
+        Path to the role-specific history directory
+    """
+    return ENGINEER_HISTORY_DIR if is_engineer else EMPLOYEE_HISTORY_DIR
+
+
+def load_history(assistant_id: str, thread_id: str, is_engineer: bool) -> List[Dict]:
+    """
+    Load chat history from file based on user role.
 
     Args:
         assistant_id: Assistant ID used as file name prefix
         thread_id: Thread ID
+        is_engineer: True if user is IT Support Engineer, False if Employee
 
     Returns:
         List of historical messages
     """
-    history_file = HISTORY_DIR / f"{assistant_id[:8]}_{thread_id}.json"
+    history_dir = get_role_history_dir(is_engineer)
+    history_file = history_dir / f"{assistant_id[:8]}_{thread_id}.json"
     _LOGGER.debug(f"Loading history from: {history_file}")
     if history_file.exists():
         try:
@@ -111,41 +134,69 @@ def load_history(assistant_id: str, thread_id: str) -> List[Dict]:
     return []
 
 
-def save_history(assistant_id: str, thread_id: str, history: List[Dict]):
+def save_history(assistant_id: str, thread_id: str, history: List[Dict], is_engineer: bool):
     """
-    Save chat history to file.
+    Save chat history to file based on user role.
 
     Args:
         assistant_id: Assistant ID used as file name prefix
         thread_id: Thread ID
         history: List of messages to save
+        is_engineer: True if user is IT Support Engineer, False if Employee
     """
-    history_file = HISTORY_DIR / f"{assistant_id[:8]}_{thread_id}.json"
+    history_dir = get_role_history_dir(is_engineer)
+    history_file = history_dir / f"{assistant_id[:8]}_{thread_id}.json"
     _LOGGER.debug(f"Saving {len(history)} messages to: {history_file}")
     with open(history_file, "w") as f:
         json.dump(history, f, indent=2)
 
 
-def get_all_conversations(assistant_id: str) -> List[Dict]:
+def clear_all_history(assistant_id: str, is_engineer: bool):
     """
-    Get all historical conversations for a specific assistant.
+    Clear all conversation history for a specific assistant based on user role.
+
+    Args:
+        assistant_id: Assistant ID to clear history for
+        is_engineer: True if user is IT Support Engineer, False if Employee
+    """
+    history_dir = get_role_history_dir(is_engineer)
+    pattern = f"{assistant_id[:8]}_*.json"
+    history_files = list(history_dir.glob(pattern))
+    
+    for file in history_files:
+        try:
+            file.unlink()
+            _LOGGER.info(f"Deleted history file: {file}")
+        except Exception as e:
+            _LOGGER.error(f"Failed to delete history file {file}: {e}")
+    
+    st.session_state.history[ASSISTANT_ID] = []
+    st.session_state.ticket_logs[ASSISTANT_ID] = []
+
+
+def get_all_conversations(assistant_id: str, is_engineer: bool) -> List[Dict]:
+    """
+    Get all historical conversations for a specific assistant based on user role.
 
     Args:
         assistant_id: Assistant ID to filter conversation history
+        is_engineer: True if user is IT Support Engineer, False if Employee
 
     Returns:
         List of conversation summaries with thread_id, preview, created_at, and message_count
     """
     conversations = []
-    if not os.path.exists(HISTORY_DIR):
+    history_dir = get_role_history_dir(is_engineer)
+    
+    if not os.path.exists(history_dir):
         return conversations
 
     prefix = f"{assistant_id[:8]}_"
 
-    for filename in os.listdir(HISTORY_DIR):
+    for filename in os.listdir(history_dir):
         if filename.startswith(prefix) and filename.endswith(".json"):
             thread_id = filename[len(prefix) : -5]
-            history_file = os.path.join(HISTORY_DIR, filename)
+            history_file = os.path.join(history_dir, filename)
 
             try:
                 with open(history_file, "r") as f:
@@ -192,7 +243,7 @@ STREAMING = False
 # Streamlit Page Initialization
 # ==============================================================================
 
-st.set_page_config(page_title="Project AERO | NVIDIA China IT Operations Agent", layout="wide", page_icon="🤖")
+st.set_page_config(page_title="AERO - AI-Enabled Regional Operations Agent", layout="wide", page_icon="🤖")
 
 # Custom CSS for sidebar button alignment
 st.markdown(
@@ -291,10 +342,6 @@ with st.sidebar:
     )
     IS_ENGINEER = USER_ROLE == "IT Support Engineer"
     
-    # Store role in session state
-    st.session_state.user_role = USER_ROLE
-    st.session_state.is_engineer = IS_ENGINEER
-    
     st.sidebar.markdown("---")
     
     # -------------------------------------------------------------------------
@@ -306,6 +353,39 @@ with st.sidebar:
         format_func=lambda a: a.get("name") or a["assistant_id"],
     )
     ASSISTANT_ID = ASSISTANT["assistant_id"]
+    
+    # Check if role has changed and reset if needed (after ASSISTANT_ID is defined)
+    if (
+        "previous_role" in st.session_state 
+        and st.session_state.previous_role != USER_ROLE
+        and st.session_state.get("role_change_in_progress") != USER_ROLE
+    ):
+        # Set guard flag to prevent infinite loop during rerun
+        st.session_state.role_change_in_progress = USER_ROLE
+        
+        # Reset conversation when role changes
+        _LOGGER.info(f"[ROLE] Changed from {st.session_state.previous_role} to {USER_ROLE}")
+        
+        # Reset thread and history
+        new_thread = CLIENT.threads.create()
+        st.session_state.threads[ASSISTANT_ID] = new_thread["thread_id"]
+        st.session_state.history[ASSISTANT_ID] = []
+        
+        # Clear URL params
+        query_params = st.query_params.to_dict()
+        for key in list(query_params.keys()):
+            if key.startswith("thread_"):
+                del query_params[key]
+        st.query_params.clear()
+        st.rerun()
+    else:
+        # Reset guard flag and update previous_role
+        st.session_state.role_change_in_progress = None
+        st.session_state.previous_role = USER_ROLE
+    
+    # Always update role state
+    st.session_state.user_role = USER_ROLE
+    st.session_state.is_engineer = IS_ENGINEER
 
     if st.sidebar.button("➕ New conversation", use_container_width=True):
         _LOGGER.info(f"Creating new conversation for assistant: {ASSISTANT_ID}")
@@ -335,7 +415,7 @@ with st.sidebar:
         or not st.session_state.history[ASSISTANT_ID]
     ):
         _LOGGER.info(f"Loading history for assistant: {ASSISTANT_ID}")
-        st.session_state.history[ASSISTANT_ID] = load_history(ASSISTANT_ID, THREAD_ID)
+        st.session_state.history[ASSISTANT_ID] = load_history(ASSISTANT_ID, THREAD_ID, IS_ENGINEER)
 
     # Initialize ticket logs for this assistant
     if ASSISTANT_ID not in st.session_state.ticket_logs:
@@ -350,37 +430,79 @@ with st.sidebar:
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 📜 Conversation History")
 
-    all_conversations = get_all_conversations(ASSISTANT_ID)
+    all_conversations = get_all_conversations(ASSISTANT_ID, IS_ENGINEER)
 
     if all_conversations:
-        for conv in all_conversations:
-            thread_id = conv["thread_id"]
-            preview = conv["preview"]
-            msg_count = conv["message_count"]
-            is_current = THREAD_ID == thread_id
-            label = f"{'✓ ' if is_current else ''}{preview}"
-
-            if st.sidebar.button(
-                label,
-                key=f"conv_{thread_id}",
-                use_container_width=True,
-            ):
-                _LOGGER.info(f"Switching to conversation: {thread_id}")
-                st.session_state.threads[ASSISTANT_ID] = thread_id
-                st.session_state.history[ASSISTANT_ID] = load_history(
-                    ASSISTANT_ID, thread_id
-                )
-                st.query_params[f"thread_{ASSISTANT_ID[:8]}"] = thread_id
-                st.rerun()
+        # Create conversation selection using selectbox
+        conversation_options = ["-- Select a conversation --"] + [f"{conv['preview']}" for conv in all_conversations]
+        
+        # Find if current thread is in history
+        matching_idx = next((i+1 for i, conv in enumerate(all_conversations) if conv['thread_id'] == THREAD_ID), 0)
+        
+        selected_idx = st.sidebar.selectbox(
+            "Select conversation",
+            range(len(conversation_options)),
+            index=matching_idx,
+            format_func=lambda i: conversation_options[i],
+            label_visibility="hidden",
+            key="conv_selector"
+        )
+        
+        # Handle selection change
+        if selected_idx != matching_idx and selected_idx > 0:
+            selected_conv = all_conversations[selected_idx - 1]
+            _LOGGER.info(f"Switching to conversation: {selected_conv['thread_id']}")
+            st.session_state.threads[ASSISTANT_ID] = selected_conv['thread_id']
+            st.session_state.history[ASSISTANT_ID] = load_history(
+                ASSISTANT_ID, selected_conv['thread_id'], IS_ENGINEER
+            )
+            st.query_params[f"thread_{ASSISTANT_ID[:8]}"] = selected_conv['thread_id']
+            st.rerun()
+        
+        # Clear History button (only show when there is history)
+        if st.sidebar.button("🗑️ Clear History", use_container_width=True, key="clear_history_btn"):
+            clear_all_history(ASSISTANT_ID, IS_ENGINEER)
+            st.rerun()
     else:
         st.sidebar.info("No conversation history")
 
     # -------------------------------------------------------------------------
-    # Operations Dashboard (IT Engineer view only)
+    # Pending Tickets (IT Engineer view only)
     # -------------------------------------------------------------------------
     if IS_ENGINEER:
         st.sidebar.markdown("---")
-        st.sidebar.markdown("### 📊 Operations Dashboard")
+        st.sidebar.markdown("### 🎫 Pending Tickets")
+        
+        # Pending Tickets Data
+        pending_tickets = [
+            {"id": "INC-1001", "type": "Password Reset", "priority": "High", "requester": "john.doe@nvidia.com", "created": "2026-05-25 09:15", "description": "Cannot reset password, getting error when trying to reset via Okta"},
+            {"id": "INC-1002", "type": "VPN Issue", "priority": "Medium", "requester": "jane.smith@nvidia.com", "created": "2026-05-25 10:30", "description": "VPN connection drops every 5 minutes when working from home"},
+            {"id": "INC-1003", "type": "Software Install", "priority": "Low", "requester": "bob.wilson@nvidia.com", "created": "2026-05-25 11:45", "description": "Need help installing Microsoft Teams on laptop"},
+        ]
+        
+        # Ticket selection
+        ticket_options = [f"{ticket['id']} - {ticket['type']} ({ticket['priority']})" for ticket in pending_tickets]
+        selected_ticket_str = st.sidebar.selectbox("Select a ticket to work on", ["-- Select a ticket --"] + ticket_options, key="ticket_selector")
+        
+        # Store selected ticket in session state and reset analysis state
+        if selected_ticket_str != "-- Select a ticket --":
+            selected_ticket_idx = ticket_options.index(selected_ticket_str)
+            new_ticket = pending_tickets[selected_ticket_idx]
+            
+            # Check if ticket changed
+            if not st.session_state.get("selected_ticket") or st.session_state.selected_ticket["id"] != new_ticket["id"]:
+                st.session_state.ticket_analyzed = False
+            
+            st.session_state.selected_ticket = new_ticket
+        else:
+            st.session_state.selected_ticket = None
+            st.session_state.ticket_analyzed = False
+        
+        # -------------------------------------------------------------------------
+        # Operations Dashboard (IT Engineer view only)
+        # -------------------------------------------------------------------------
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### 📈 Operations Dashboard")
         
         # IT Operational Metrics
         col1, col2 = st.sidebar.columns(2)
@@ -398,26 +520,9 @@ with st.sidebar:
         st.sidebar.markdown("**51%**")
         
         st.sidebar.markdown(
-            "<p style='font-size:10px;color:#666'>PoC Simulation Data | NVIDIA China IT Operations</p>",
+            "<p style='font-size:10px;color:#666'>PoC Simulation Data | Enterprise IT Operations</p>",
             unsafe_allow_html=True
         )
-        
-        # -------------------------------------------------------------------------
-        # Engineer Tools (IT Engineer view only)
-        # -------------------------------------------------------------------------
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("### 🔧 Engineer Tools")
-        
-        # Pending Tickets Queue
-        st.sidebar.markdown("**Pending Tickets**")
-        pending_tickets = [
-            {"id": "INC-1001", "type": "Password Reset", "priority": "High"},
-            {"id": "INC-1002", "type": "VPN Issue", "priority": "Medium"},
-            {"id": "INC-1003", "type": "Software Install", "priority": "Low"},
-        ]
-        
-        for ticket in pending_tickets:
-            st.sidebar.markdown(f"• **{ticket['id']}**: {ticket['type']}")
 
 # ==============================================================================
 # JavaScript Container for UI interactions
@@ -484,10 +589,10 @@ def generate_diagnostic_script(platform: str) -> str:
     """
     scripts = {
         "Windows": """
-# NVIDIA IT Helpdesk Diagnostic Script (PowerShell)
+# Enterprise IT Helpdesk Diagnostic Script (PowerShell)
 # Run with: powershell -ExecutionPolicy Bypass -File diagnose.ps1
 
-Write-Host "=== NVIDIA IT Helpdesk Diagnostic Report ===" -ForegroundColor Cyan
+Write-Host "=== Enterprise IT Helpdesk Diagnostic Report ===" -ForegroundColor Cyan
 Write-Host "Generated: $(Get-Date)" -ForegroundColor Gray
 Write-Host ""
 
@@ -522,10 +627,10 @@ Write-Host "=== Diagnostic Complete ===" -ForegroundColor Green
 """,
         "macOS": """
 #!/bin/bash
-# NVIDIA IT Helpdesk Diagnostic Script (Bash)
+# Enterprise IT Helpdesk Diagnostic Script (Bash)
 # Run with: bash diagnose.sh
 
-echo "=== NVIDIA IT Helpdesk Diagnostic Report ==="
+echo "=== Enterprise IT Helpdesk Diagnostic Report ==="
 echo "Generated: $(date)"
 echo ""
 
@@ -561,10 +666,10 @@ echo "=== Diagnostic Complete ==="
 """,
         "Linux": """
 #!/bin/bash
-# NVIDIA IT Helpdesk Diagnostic Script (Bash)
+# Enterprise IT Helpdesk Diagnostic Script (Bash)
 # Run with: bash diagnose.sh
 
-echo "=== NVIDIA IT Helpdesk Diagnostic Report ==="
+echo "=== Enterprise IT Helpdesk Diagnostic Report ==="
 echo "Generated: $(date)"
 echo ""
 
@@ -613,51 +718,118 @@ CHAT = st.container()
 if IS_ENGINEER:
     USER_INPUT = st.chat_input("💬 IT Support Console - How can I assist?")
 else:
-    USER_INPUT = st.chat_input("💬 How can I help you? Initiate IT support requests via Slack Bot")
+    USER_INPUT = st.chat_input("💬 How can I help you?")
 
-# Create diagnostic tool section (IT Engineer view only)
+# IT Engineer: Ticket Analysis Section
 if IS_ENGINEER:
-    st.markdown("---")
-    st.markdown("### 🔧 Diagnostic Tools")
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        platform = st.selectbox("Select Platform", ["Windows", "macOS", "Linux"], key="platform_selector")
-    with col2:
-        generate_script = st.button("Generate Diagnostic Script", use_container_width=True)
-
-    # Handle diagnostic script generation
-    if generate_script:
-        script = generate_diagnostic_script(platform)
+    # Initialize session state
+    if "selected_ticket" not in st.session_state:
+        st.session_state.selected_ticket = None
+    if "ticket_analyzed" not in st.session_state:
+        st.session_state.ticket_analyzed = False
+    
+    selected_ticket = st.session_state.selected_ticket
+    
+    if selected_ticket:
+        st.markdown("---")
         
-        with CHAT.chat_message("ai"):
-            st.markdown(f"**Generated {platform} Diagnostic Script:**")
-            st.code(script, language="powershell" if platform == "Windows" else "bash")
+        # Display ticket details in expander
+        ticket_expander = st.expander(f"📌 {selected_ticket['id']}: {selected_ticket['type']}", expanded=True)
+        with ticket_expander:
+            st.markdown(f"**Requester:** {selected_ticket['requester']}")
+            st.markdown(f"**Created:** {selected_ticket['created']}")
+            st.markdown(f"**Priority:** {selected_ticket['priority']}")
+            st.markdown(f"**Description:** {selected_ticket['description']}")
         
-        # Simulate log collection
         st.markdown("")
-        st.markdown("**📋 Running diagnostic collection...**")
-        time.sleep(1)
         
-        # Simulate results
-        st.markdown("**Diagnostic Results:**")
-        st.markdown("```")
-        st.markdown(f"Platform: {platform}")
-        st.markdown("Status: Success")
-        st.markdown("Collected: System info, network status, event logs")
-        st.markdown("```")
+        # Analyze Ticket button with custom style
+        analyze_button = st.button("🔍 Analyze Ticket", use_container_width=True, key="analyze_ticket_btn")
         
-        # Create ServiceNow ticket and attach diagnostic data
-        ticket = create_ticket("Diagnostic Collection", "user@nvidia.com")
-        assign_result = assign_ticket(ticket["ticket_id"])
-        close_result = close_ticket(ticket["ticket_id"], "Diagnostic data collected successfully")
+        if analyze_button:
+            st.session_state.ticket_analyzed = True
         
-        st.markdown(f"✅ **Diagnostic results attached to ServiceNow Ticket #{ticket['ticket_id']}**")
-        
-        # Add to ticket logs
-        logs = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Created ticket: {ticket['ticket_id']}\n"
-        logs += f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {assign_result}\n"
-        logs += f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {close_result}\n"
-        st.session_state.ticket_logs[ASSISTANT_ID].append(logs)
+        # Display analysis results if ticket has been analyzed
+        if st.session_state.ticket_analyzed:
+            st.markdown("---")
+            st.markdown("### 📊 Ticket Analysis Results")
+            
+            # Similar Historical Tickets
+            history_expander = st.expander("📜 Similar Historical Tickets", expanded=False)
+            with history_expander:
+                historical_tickets = [
+                    {"id": "INC-987", "type": "Password Reset", "resolution": "Reset via AD, Okta sync issue fixed", "similarity": "95%"},
+                    {"id": "INC-876", "type": "VPN Issue", "resolution": "Updated VPN client, network settings optimized", "similarity": "60%"},
+                ]
+                
+                for hist_ticket in historical_tickets:
+                    st.markdown(f"- **{hist_ticket['id']}** ({hist_ticket['similarity']} similar): {hist_ticket['type']} - {hist_ticket['resolution']}")
+            
+            # Diagnosis & Resolution
+            diagnosis_expander = st.expander("🔧 Diagnosis & Resolution", expanded=False)
+            with diagnosis_expander:
+                if selected_ticket['type'] == "Password Reset":
+                    st.markdown("""
+**Diagnosis:** User reported Okta password reset error. Historical data shows similar issue due to AD-Okta sync delay.
+
+**Recommended Resolution:**
+1. Verify user account in Active Directory
+2. Force sync between AD and Okta
+3. Guide user through reset process
+4. If issue persists, escalate to Identity Management team
+                    """)
+                elif selected_ticket['type'] == "VPN Issue":
+                    st.markdown("""
+**Diagnosis:** VPN connection drops indicate potential network instability or outdated client.
+
+**Recommended Resolution:**
+1. Check user's internet connection stability
+2. Update VPN client to latest version
+3. Verify firewall settings
+4. Collect diagnostic logs for further analysis
+                    """)
+                else:
+                    st.markdown("""
+**Diagnosis:** Software installation request requires verification of user permissions and software availability.
+
+**Recommended Resolution:**
+1. Verify user has proper installation permissions
+2. Check if software is in approved software catalog
+3. Guide user through installation process
+4. If issues persist, schedule remote assistance
+                    """)
+            
+            st.markdown("")
+            
+            # Diagnostic Tools section
+            st.markdown("---")
+            st.markdown("### 🔧 Diagnostic Tools")
+            platform = st.selectbox("Select Platform", ["Windows", "macOS", "Linux"], key="platform_selector")
+            generate_script = st.button("Generate Diagnostic Script", use_container_width=True)
+
+            # Handle diagnostic script generation
+            if generate_script:
+                script = generate_diagnostic_script(platform)
+                
+                st.markdown(f"**Generated {platform} Diagnostic Script:**")
+                st.code(script, language="powershell" if platform == "Windows" else "bash")
+                
+                # Simulate log collection
+                st.markdown("")
+                st.markdown("**📋 Running diagnostic collection...**")
+                time.sleep(1)
+                
+                # Simulate results
+                st.markdown("**Diagnostic Results:**")
+                diagnostic_result = f"Platform: {platform}\nStatus: Success\nCollected: System info, network status, event logs"
+                st.code(diagnostic_result)
+                
+                # Update ticket with diagnostic data
+                st.markdown(f"✅ **Diagnostic results attached to {selected_ticket['id']}**")
+    else:
+        # No ticket selected - show default message only if no chat history
+        if not st.session_state.history.get(ASSISTANT_ID):
+            st.info("👈 Select a ticket from the left sidebar to begin analysis.")
 
 # Render historical messages
 for msg in st.session_state.history.get(ASSISTANT_ID, []):
@@ -705,7 +877,7 @@ if USER_INPUT:
         {"role": "user", "content": USER_INPUT}
     )
 
-    save_history(ASSISTANT_ID, THREAD_ID, st.session_state.history[ASSISTANT_ID])
+    save_history(ASSISTANT_ID, THREAD_ID, st.session_state.history[ASSISTANT_ID], IS_ENGINEER)
 
     # Display user message
     with CHAT.chat_message("user"):
@@ -735,11 +907,10 @@ if USER_INPUT:
         displayed_messages.add(msg_key)
 
     stream_mode = ["updates", "messages"] if STREAMING else ["updates", "values"]
-
-    # Track if password reset workflow is triggered
-    is_password_reset = "password" in USER_INPUT.lower() or "reset" in USER_INPUT.lower()
     
     # Process AI response
+    _LOGGER.info(f"[LLM] Request started - Thread: {THREAD_ID[:8]}, Input: {USER_INPUT[:50]}...")
+    
     for msg in CLIENT.runs.stream(
         thread_id=THREAD_ID,
         assistant_id=ASSISTANT_ID,
@@ -777,6 +948,10 @@ if USER_INPUT:
 
                 msg_content = message.get("content", "")
                 msg_name = message.get("name", "")
+
+                # Log tool calls
+                if persona == "tool":
+                    _LOGGER.info(f"[TOOL] {msg_name}: {msg_content[:50]}...")
 
                 if persona == "user":
                     continue
@@ -879,50 +1054,11 @@ if USER_INPUT:
                 ):
                     st.session_state.history[ASSISTANT_ID].append(agent_message)
 
-    # After AI response, execute workflows based on user role
-    _LOGGER.info("Executing post-response workflows...")
-    
-    # Password reset workflow enhancement (both roles)
-    if is_password_reset:
-        with CHAT.chat_message("ai"):
-            st.markdown("🔍 **Verifying user identity via Active Directory (Mock)** - Success")
-            time.sleep(1)
-            st.markdown("🔑 **Password reset executed successfully via Okta API (Mock)**")
-            
-            # Add these steps to history
-            st.session_state.history[ASSISTANT_ID].append({
-                "role": "ai",
-                "content": "🔍 Verifying user identity via Active Directory (Mock) - Success\n🔑 Password reset executed successfully via Okta API (Mock)"
-            })
-    
-    # IT Engineer: Automatic ServiceNow ticket workflow
-    if IS_ENGINEER:
-        issue_type = "Password Reset" if is_password_reset else "General Inquiry"
-        ticket = create_ticket(issue_type, "user@nvidia.com")
-        assign_result = assign_ticket(ticket["ticket_id"])
-        close_result = close_ticket(ticket["ticket_id"], "Issue resolved through automated assistant")
-        
-        # Display ticket status
-        with CHAT.chat_message("ai"):
-            st.markdown(f"✅ **ServiceNow Ticket #{ticket['ticket_id']} created, assigned and closed automatically**")
-            
-            # Add ticket logs to reasoning expander
-            logs = f"**ServiceNow Ticket Logs:**\n\n"
-            logs += f"- Created: {ticket['ticket_id']} ({ticket['issue_type']})\n"
-            logs += f"- Assigned: {assign_result}\n"
-            logs += f"- Closed: {close_result}\n"
-            logs += f"- Timestamp: {ticket['created_at']}"
-            
-            reasoning_expander = st.expander("View Ticket Details", expanded=False)
-            reasoning_expander.markdown(logs)
-        
-        # Store ticket logs
-        ticket_log_entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Ticket: {ticket['ticket_id']} | "
-        ticket_log_entry += f"Issue: {issue_type} | Status: Closed\n"
-        st.session_state.ticket_logs[ASSISTANT_ID].append(ticket_log_entry)
+    # After AI response
+    _LOGGER.info(f"[LLM] Request completed - History: {len(st.session_state.history.get(ASSISTANT_ID, []))} messages")
     
     # Save updated history
-    save_history(ASSISTANT_ID, THREAD_ID, st.session_state.history[ASSISTANT_ID])
+    save_history(ASSISTANT_ID, THREAD_ID, st.session_state.history[ASSISTANT_ID], IS_ENGINEER)
     
     # Show closure confirmation for employees after AI response
     if not IS_ENGINEER:
@@ -940,7 +1076,7 @@ def handle_closure_action(action_type):
             "role": "ai",
             "content": message_content
         })
-        save_history(ASSISTANT_ID, THREAD_ID, st.session_state.history[ASSISTANT_ID])
+        save_history(ASSISTANT_ID, THREAD_ID, st.session_state.history[ASSISTANT_ID], False)
         st.session_state.last_action = None
         st.session_state.show_closure_confirmation = False
         st.rerun()
@@ -969,7 +1105,7 @@ def handle_closure_action(action_type):
                 "description": issue_summary
             }
         })
-        save_history(ASSISTANT_ID, THREAD_ID, st.session_state.history[ASSISTANT_ID])
+        save_history(ASSISTANT_ID, THREAD_ID, st.session_state.history[ASSISTANT_ID], False)
         st.session_state.last_action = None
         st.session_state.show_closure_confirmation = False
         st.rerun()

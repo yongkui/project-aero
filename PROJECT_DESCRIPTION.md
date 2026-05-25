@@ -1,14 +1,15 @@
-# iTechOps - NVIDIA IT Helpdesk Agent Project Description
+# Project AERO: AI-Enabled Regional Operations
+## Internal Codename: itechops
 
 ## 1. Project Overview
 
-**Project Name**: iTechOps  
+**Project Name**: Project AERO  
 **Project Type**: RAG-based IT Helpdesk Intelligent Assistant  
 **Technical Architecture**: Frontend-backend separation, backend based on LangGraph, frontend based on Streamlit  
 
 ### 1.1 Core Value Proposition
 
-iTechOps is an intelligent IT support agent that provides efficient IT support services for enterprises by integrating three core capabilities:
+Project AERO is an intelligent IT support agent that provides efficient IT support services for enterprises by integrating three core capabilities:
 
 | Capability Module | Function Description | Technical Implementation |
 |------------------|---------------------|------------------------|
@@ -57,18 +58,24 @@ iTechOps is an intelligent IT support agent that provides efficient IT support s
 | **MCP Service** | Web search proxy | `code/backend/mcp_server.py` |
 | **Knowledge Base** | IT policy document storage | `data/it-kb-articles/*.md` |
 | **Skills System** | Specialized skill definitions | `skills/*/SKILL.md` |
+| **Enterprise Services** | Mock enterprise integrations | `code/backend/services/*.py` |
 
 ---
 
 ## 3. Project Directory Structure
 
 ```
-itechops/
+project-aero/
 ├── code/                          # Source code directory
 │   ├── backend/                   # LangGraph backend
 │   │   ├── rag_agent.py           # RAG Agent core implementation
 │   │   ├── mcp_server.py          # MCP server (web search)
-│   │   ├── mock_servicenow.py     # Mock ServiceNow integration
+│   │   ├── services/              # Enterprise service mocks
+│   │   │   ├── __init__.py
+│   │   │   ├── servicenow.py
+│   │   │   ├── jira.py
+│   │   │   ├── identity.py
+│   │   │   └── observability.py
 │   │   └── langgraph.json         # LangGraph configuration
 │   └── frontend/                  # Streamlit frontend
 │       └── app.py                 # Frontend main application
@@ -93,11 +100,14 @@ itechops/
 │       └── SKILL.md
 ├── storage/                       # Runtime storage (auto-created)
 │   ├── logs/                      # Log files
-│   └── chat_history/              # Chat history
+│   ├── chat_history/              # Chat history (separated by role)
+│   │   ├── employee/              # Employee chat history
+│   │   └── engineer/              # IT Engineer chat history
 ├── .env                           # Environment variables
 ├── requirements.txt               # Python dependencies
 ├── setup_env.sh                   # Environment setup script
-└── README.md                      # Project documentation
+├── README.md                      # Project documentation
+└── PROJECT_DESCRIPTION.md         # Detailed project description
 ```
 
 ---
@@ -137,21 +147,29 @@ itechops/
 **Tool List**:
 | Tool Name | Description | Use Cases |
 |-----------|-------------|-----------|
-| `company_llc_it_knowledge_base` | Search internal IT knowledge base | Password reset, VPN issues, software installation |
+| `it_knowledge_base` | Search internal IT knowledge base | Password reset, VPN issues, software installation |
 | `web_search` | Web search | Current events, external resources |
 | `list_available_skills` | List available skills | Discover available expertise |
 | `get_skill` | Load specific skill | Code review, technical writing |
+| `servicenow_create_ticket` | Create ServiceNow tickets | IT incident logging |
+| `servicenow_assign_ticket` | Assign ServiceNow tickets | Ticket routing |
+| `servicenow_close_ticket` | Close ServiceNow tickets | Ticket resolution |
+| `jira_create_engineering_task` | Create Jira tasks | Engineering escalation |
+| `identity_verify_user` | Verify user identity | AD verification |
+| `identity_reset_password` | Reset user password | Okta password reset |
+| `observability_get_network_status` | Get network status | Network troubleshooting |
 
 ### 4.2 Frontend Architecture
 
 #### 4.2.1 Main Features
 
-1. **Chat Interface**: Implemented using Streamlit's `chat_message` component
-2. **History Management**: Save/load conversation history as JSON files
-3. **Reasoning Display**: Show AI thinking process via expandable panels
-4. **Multi-assistant Support**: Switch between different LangGraph assistants via sidebar
-5. **Operations Dashboard**: Display IT operational metrics in sidebar
-6. **Diagnostic Tool**: Generate platform-specific diagnostic scripts
+1. **Dual-Role System**: Employee and IT Support Engineer views with role-specific features
+2. **Chat Interface**: Implemented using Streamlit's `chat_message` component
+3. **History Management**: Save/load conversation history as JSON files (role-separated)
+4. **Reasoning Display**: Show AI thinking process via expandable panels
+5. **Operations Dashboard**: Display IT operational metrics for engineers
+6. **Diagnostic Tools**: Generate platform-specific diagnostic scripts
+7. **Conversation Closure Flow**: Ticket creation workflow for employees
 
 #### 4.2.2 State Management
 
@@ -159,10 +177,12 @@ itechops/
 - `threads`: Store thread IDs for each assistant
 - `history`: Store chat history messages for each assistant
 - `ticket_logs`: Store ServiceNow ticket operation logs
+- `user_role`: Current user role (Employee/IT Support Engineer)
+- `is_engineer`: Boolean flag for engineer view
 
 **Persistence Mechanism**:
 - History file format: `{assistant_id[:8]}_{thread_id}.json`
-- Storage directory: `storage/chat_history/`
+- Storage directory: `storage/chat_history/{role}/`
 
 ---
 
@@ -274,9 +294,11 @@ Access at: `http://localhost:8501`
 storage/
 ├── logs/                          # Log directory
 │   ├── frontend_YYYYMMDD.log      # Frontend logs
-│   └── backend_YYYYMMDD.log       # Backend logs
+│   ├── backend_YYYYMMDD.log       # Backend logs
+│   └── llm_activity_YYYYMMDD.log  # LLM activity logs
 └── chat_history/                  # Chat history
-    └── {assistant_id}_{thread_id}.json  # History files
+    ├── employee/                  # Employee conversation history
+    └── engineer/                  # IT Engineer conversation history
 ```
 
 ### 8.2 Log Configuration
@@ -310,12 +332,9 @@ EOF
 
 Add new markdown files to `data/it-kb-articles/` directory. System will automatically load them.
 
-### 9.3 Custom Configuration
+### 9.3 Add New Services
 
-Modify `langgraph.json` to adjust:
-- Dependency file paths
-- Registered Agent list
-- Environment variable file location
+Add new mock services in `code/backend/services/` and register them in `__init__.py` and `rag_agent.py`.
 
 ---
 
@@ -326,17 +345,42 @@ Modify `langgraph.json` to adjust:
 | **RAG Enhancement** | Combines vector retrieval and Rerank to improve answer quality |
 | **MCP Protocol** | Standardized tool calling interface supporting multi-service integration |
 | **Dynamic Skill Loading** | On-demand expertise loading extends Agent capabilities |
-| **Conversation Persistence** | Save and restore conversation history |
+| **Conversation Persistence** | Save and restore conversation history with role separation |
 | **Reasoning Display** | View AI thinking process for transparency |
 | **Multi-assistant Support** | Run multiple different Agents simultaneously |
+| **Dual-Role System** | Separate views for employees and IT support engineers |
 | **ServiceNow Integration** | Automated ticket creation, assignment, and closure |
 | **Diagnostic Tools** | Cross-platform diagnostic script generation |
 | **Operations Dashboard** | Real-time IT operational metrics display |
+| **Conversation Closure Flow** | Employee ticket creation workflow |
 
 ---
 
-## 11. Summary
+## 11. Acknowledgments
 
-iTechOps is a comprehensive IT Helpdesk intelligent assistant that provides efficient, professional IT support services for enterprises through integrated RAG retrieval, web search, and dynamic skill loading. The project features modular design for easy extension and maintenance, making it suitable as a foundation for enterprise IT support systems.
+This project is based on NVIDIA's Build An Agent Workshop (https://github.com/brevdev/workshop-build-an-agent). The core RAG implementation, LangGraph orchestration patterns, and NVIDIA AI Endpoints integration were adapted from this workshop.
 
-Employees can initiate IT support requests via Slack Bot, and the system automatically creates ServiceNow tickets for tracking and reporting purposes.
+### Key Changes from Original Workshop
+
+- **Dual-Role System**: Added employee and IT support engineer views
+- **Enterprise Integrations**: Implemented mock services for ServiceNow, Jira, Identity, and Observability
+- **Operations Dashboard**: Added IT operational metrics display
+- **Diagnostic Tools**: Created cross-platform diagnostic script generation
+- **Conversation Closure Flow**: Implemented ticket creation workflow
+- **Enhanced UI**: Improved chat interface with reasoning display and history management
+
+### Copyright and Usage
+
+- **NVIDIA Materials**: All original content from NVIDIA's workshop retains its original copyright and belongs to NVIDIA Corporation.
+- **Modifications**: Custom modifications and extensions are provided for educational and demonstration purposes only.
+- **Non-Commercial Use**: This project is a personal project and should not be used for commercial purposes.
+
+**Disclaimer**: This is not an official NVIDIA product or project.
+
+---
+
+## 12. Summary
+
+Project AERO is a comprehensive IT Helpdesk intelligent assistant that provides efficient, professional IT support services for enterprises through integrated RAG retrieval, web search, and dynamic skill loading. The project features modular design for easy extension and maintenance, making it suitable as a foundation for enterprise IT support systems.
+
+Employees can initiate IT support requests via Slack Bot, and the system provides a complete workflow from question answering to ticket creation and resolution.
