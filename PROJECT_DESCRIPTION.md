@@ -24,52 +24,23 @@ Project AERO is an intelligent IT support agent that provides efficient IT suppo
 ### 2.1 Overall Architecture Diagram
 
 ```mermaid
-graph LR
-    subgraph Frontend Layer
-        A[Streamlit App]
+graph TD
+    A[Frontend\nStreamlit] --> B[Backend\nLangGraph Server]
+    
+    subgraph Backend Capabilities
+        B --> C[RAG Module\nIT Knowledge Base]
+        B --> D[Web Search\nTavily MCP]
+        B --> E[Skills System\nDynamic Loading]
+        B --> F[Enterprise Services\nServiceNow/Jira/Identity]
     end
-    subgraph Backend Layer
-        B[LangGraph Server]
-        C[RAG Module]
-        D[IT KB Search]
-        E[MCP Module]
-        F[Skills Module]
-        G[Enterprise Services]
+    
+    subgraph Data Storage
+        C --> G[(FAISS Vector DB)]
+        C --> H[(IT KB Articles)]
+        F --> I[(sn_tickets.json)]
+        B --> J[(Chat History)]
+        B --> K[(Log Files)]
     end
-    subgraph External Services
-        H[Tavily Web Search]
-    end
-    subgraph Enterprise Services
-        I[ServiceNow]
-        J[Jira]
-        K[Identity]
-        L[Observability]
-    end
-    subgraph Knowledge Base
-        M[(IT KB Articles)]
-        N[(FAISS Vector DB)]
-    end
-    subgraph Persistence Layer
-        O[(sn_tickets.json)]
-        P[(Chat History)]
-        Q[(Log Files)]
-    end
-    A --> B
-    B --> C
-    C --> D
-    D --> M
-    D --> N
-    B --> E
-    E --> H
-    B --> F
-    B --> G
-    G --> I
-    G --> J
-    G --> K
-    G --> L
-    I --> O
-    A --> P
-    B --> Q
 ```
 
 ### 2.2 Module Responsibilities
