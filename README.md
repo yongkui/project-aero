@@ -164,7 +164,7 @@ All enterprise service integrations are mock implementations for demonstration p
 
 ## 🙏 Acknowledgments
 
-This project is **based on [NVIDIA's Build An Agent Workshop](https://github.com/brevdev/workshop-build-an-agent)**. Core LangGraph agent orchestration and NVIDIA AI Endpoints integration follow the official workshop design patterns, and are fully adapted and customized for enterprise IT operations scenarios.
+This project is based on NVIDIA's [Build An Agent Workshop](https://github.com/brevdev/workshop-build-an-agent). Core LangGraph agent orchestration and NVIDIA AI Endpoints integration follow the official workshop design patterns, and are fully adapted and customized for enterprise IT operations scenarios.
 
 ### Key Changes from Original Workshop
 
