@@ -53,5 +53,27 @@
     "created_at": "2026-05-25 22:13:25",
     "assigned_to": "China L1 Support",
     "resolution": null
+  },
+  {
+    "ticket_id": "INC-0006",
+    "issue_type": "IT Support Request",
+    "user_email": "user@nvidia.com",
+    "description": "How to reset my password?",
+    "status": "In Progress",
+    "priority": "Medium",
+    "created_at": "2026-05-26 20:42:23",
+    "assigned_to": "China L1 Support",
+    "resolution": null
+  },
+  {
+    "ticket_id": "INC-0007",
+    "issue_type": "IT Support Request",
+    "user_email": "user@nvidia.com",
+    "description": "what's the weather like in Shanghai today?",
+    "status": "In Progress",
+    "priority": "Medium",
+    "created_at": "2026-05-26 21:05:08",
+    "assigned_to": "China L1 Support",
+    "resolution": null
   }
 ]

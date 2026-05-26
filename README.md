@@ -42,7 +42,7 @@ All models are accessed via NVIDIA AI Endpoints API.
 project-aero/
 ├── code/
 │   ├── backend/           # LangGraph backend
-│   │   ├── rag_agent.py   # RAG agent implementation
+│   │   ├── aero_agent.py  # Main AERO agent implementation
 │   │   ├── mcp_server.py  # MCP server for web search
 │   │   ├── services/      # Enterprise service mocks
 │   │   │   ├── __init__.py
