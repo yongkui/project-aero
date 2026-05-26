@@ -24,9 +24,26 @@ Project AERO is an intelligent IT support agent that provides efficient IT suppo
 ### 2.1 Overall Architecture Diagram
 
 ```mermaid
-graph TD
+graph LR
+    subgraph Frontend
+        A[Streamlit App]
+    end
+    subgraph Backend
+        B[LangGraph Server]
+        C[RAG Module]
+        D[MCP Module]
+        E[Enterprise Services]
+    end
+    subgraph Storage
+        F[(FAISS Vector DB)]
+        G[(sn_tickets.json)]
+    end
     A --> B
     B --> C
+    B --> D
+    B --> E
+    C --> F
+    E --> G
 ```
 
 ### 2.2 Module Responsibilities
