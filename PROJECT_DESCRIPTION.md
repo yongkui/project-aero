@@ -30,7 +30,7 @@ graph LR
     end
     subgraph Backend Layer
         B[LangGraph Server]
-        C[RAG Module]
+        C[RAG Module\nIT KB Search]
         D[MCP Module]
         E[Skills Module]
         F[Enterprise Services]
@@ -44,11 +44,14 @@ graph LR
         J[Identity]
         K[Observability]
     end
+    subgraph Knowledge Base
+        L[(IT KB Articles\nMarkdown Files)]
+        M[(FAISS Vector DB)]
+    end
     subgraph Persistence Layer
-        L[(FAISS Vector DB)]
-        M[(sn_tickets.json)]
-        N[(Chat History)]
-        O[(Log Files)]
+        N[(sn_tickets.json)]
+        O[(Chat History)]
+        P[(Log Files)]
     end
     A --> B
     B --> C
@@ -61,9 +64,10 @@ graph LR
     F --> J
     F --> K
     C --> L
-    H --> M
-    A --> N
-    B --> O
+    C --> M
+    H --> N
+    A --> O
+    B --> P
 ```
 
 ### 2.2 Module Responsibilities
