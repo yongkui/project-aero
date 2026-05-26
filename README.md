@@ -6,16 +6,16 @@ Intelligent IT Operations Assistant powered by NVIDIA NIM technology.
 
 AERO is an intelligent IT support agent for regional operations that combines:
 
+- **RAG** - Knowledge base retrieval for IT help desk
+- **MCP** - Web search via Tavily for current information
+- **Skills** - Dynamic expertise loading for specialized tasks
+- **Enterprise Services** - Mock integrations for ServiceNow, Jira, Identity, and Observability
+
 ### Employee View
 ![AERO IT Support Assistant - Employee View](docs/images/employee-view.png)
 
 ### IT Support Engineer View
 ![AERO IT Support Assistant - Engineer View](docs/images/engineer-view.png)
-
-- **RAG** - Knowledge base retrieval for IT help desk
-- **MCP** - Web search via Tavily for current information
-- **Skills** - Dynamic expertise loading for specialized tasks
-- **Enterprise Services** - Mock integrations for ServiceNow, Jira, Identity, and Observability
 
 ## 🤖 NVIDIA AI Models Used
 
