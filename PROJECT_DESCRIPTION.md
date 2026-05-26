@@ -30,44 +30,46 @@ graph LR
     end
     subgraph Backend Layer
         B[LangGraph Server]
-        C[RAG Module\nIT KB Search]
-        D[MCP Module]
-        E[Skills Module]
-        F[Enterprise Services]
+        C[RAG Module]
+        D[IT KB Search]
+        E[MCP Module]
+        F[Skills Module]
+        G[Enterprise Services]
     end
     subgraph External Services
-        G[Tavily Web Search]
+        H[Tavily Web Search]
     end
     subgraph Enterprise Services
-        H[ServiceNow]
-        I[Jira]
-        J[Identity]
-        K[Observability]
+        I[ServiceNow]
+        J[Jira]
+        K[Identity]
+        L[Observability]
     end
     subgraph Knowledge Base
-        L[(IT KB Articles\nMarkdown Files)]
-        M[(FAISS Vector DB)]
+        M[(IT KB Articles)]
+        N[(FAISS Vector DB)]
     end
     subgraph Persistence Layer
-        N[(sn_tickets.json)]
-        O[(Chat History)]
-        P[(Log Files)]
+        O[(sn_tickets.json)]
+        P[(Chat History)]
+        Q[(Log Files)]
     end
     A --> B
     B --> C
-    B --> D
+    C --> D
+    D --> M
+    D --> N
     B --> E
+    E --> H
     B --> F
-    D --> G
-    F --> H
-    F --> I
-    F --> J
-    F --> K
-    C --> L
-    C --> M
-    H --> N
-    A --> O
-    B --> P
+    B --> G
+    G --> I
+    G --> J
+    G --> K
+    G --> L
+    I --> O
+    A --> P
+    B --> Q
 ```
 
 ### 2.2 Module Responsibilities
