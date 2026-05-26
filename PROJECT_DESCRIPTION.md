@@ -24,29 +24,39 @@ Project AERO is an intelligent IT support agent that provides efficient IT suppo
 ### 2.1 Overall Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Frontend Layer (Streamlit)                │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  UI: Chat Interface, Conversation History, Reasoning    │   │
-│  │  State Management: Session State + File Persistence     │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                              │                                 │
-│                              ▼                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              LangGraph API Server                        │   │
-│  │  • Receive client requests                              │   │
-│  │  • Manage conversation threads                          │   │
-│  │  • Execute Agent workflow                               │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                              │                                 │
-│          ┌───────────────────┼───────────────────┐             │
-│          ▼                   ▼                   ▼             │
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐      │
-│  │  RAG Module   │  │  MCP Module   │  │  Skills Module│      │
-│  │  • FAISS DB   │  │  • Tavily     │  │  • Dynamic    │      │
-│  │  • Doc Search │  │  • Real-time  │  │    Skill Load │      │
-│  └───────────────┘  └───────────────┘  └───────────────┘      │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      Frontend Layer (Streamlit)                        │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  UI: Chat Interface, Conversation History, Reasoning            │   │
+│  │  State Management: Session State + File Persistence             │   │
+│  │  Ticket Dashboard: IT Engineer View                             │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                              │                                         │
+│                              ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │              LangGraph API Server                                │   │
+│  │  • Receive client requests                                      │   │
+│  │  • Manage conversation threads                                  │   │
+│  │  • Execute Agent workflow                                       │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                              │                                         │
+│          ┌───────────────────┼───────────────────┬───────────────────┐ │
+│          ▼                   ▼                   ▼                   ▼ │
+│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐│
+│  │  RAG Module   │  │  MCP Module   │  │  Skills Module│  │  Enterprise   ││
+│  │  • FAISS DB   │  │  • Tavily     │  │  • Dynamic    │  │  Services     ││
+│  │  • Doc Search │  │  • Real-time  │  │    Skill Load │  │  • ServiceNow ││
+│  └───────────────┘  └───────────────┘  └───────────────┘  │  • Jira       ││
+│          │                                           │     │  • Identity   ││
+│          ▼                                           ▼     │  • Observability│
+│  ┌─────────────────────────────────────────────────────────┐  └───────────────┘│
+│  │                    Persistence Layer                     │                   │
+│  │  • Vector Store: FAISS Indexes                          │                   │
+│  │  • Ticket Storage: sn_tickets.json                      │                   │
+│  │  • Chat History: JSON files (role-separated)            │                   │
+│  │  • Logs: Daily log files                                │                   │
+│  └─────────────────────────────────────────────────────────┘                   │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 Module Responsibilities
