@@ -58,7 +58,7 @@ graph LR
     F --> J
     C --> K
     G --> L
-    B --> M
+    A --> M
     B --> N
 ```
 
