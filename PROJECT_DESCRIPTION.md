@@ -80,19 +80,20 @@ project-aero/
 │   └── frontend/                  # Streamlit frontend
 │       └── app.py                 # Frontend main application
 ├── data/                          # Data directory
-│   └── it-kb-articles/            # IT knowledge base articles
-│       ├── email-distribution-lists.md
-│       ├── hardware-refresh.md
-│       ├── help-and-support.md
-│       ├── hpc-cluster-access.md
-│       ├── reset-password.md
-│       ├── security-incident-reporting.md
-│       ├── software-installation.md
-│       ├── source-control-management.md
-│       ├── update-pii.md
-│       ├── virtual-desktop-request.md
-│       ├── vpn.md
-│       └── wifi-access.md
+│   ├── it-kb-articles/            # IT knowledge base articles
+│   │   ├── email-distribution-lists.md
+│   │   ├── hardware-refresh.md
+│   │   ├── help-and-support.md
+│   │   ├── hpc-cluster-access.md
+│   │   ├── reset-password.md
+│   │   ├── security-incident-reporting.md
+│   │   ├── software-installation.md
+│   │   ├── source-control-management.md
+│   │   ├── update-pii.md
+│   │   ├── virtual-desktop-request.md
+│   │   ├── vpn.md
+│   │   └── wifi-access.md
+│   └── sn_tickets.json            # ServiceNow ticket data (mock)
 ├── skills/                        # Skills directory
 │   ├── code_review/               # Code review skill
 │   │   └── SKILL.md
@@ -149,7 +150,7 @@ project-aero/
 |-----------|-------------|-----------|
 | `it_knowledge_base` | Search internal IT knowledge base | Password reset, VPN issues, software installation |
 | `web_search` | Web search | Current events, external resources |
-| `list_available_skills` | List available skills | Discover available expertise |
+| `list_skills` | List available skills | Discover available expertise |
 | `get_skill` | Load specific skill | Code review, technical writing |
 | `servicenow_create_ticket` | Create ServiceNow tickets | IT incident logging |
 | `servicenow_assign_ticket` | Assign ServiceNow tickets | Ticket routing |
@@ -158,6 +159,25 @@ project-aero/
 | `identity_verify_user` | Verify user identity | AD verification |
 | `identity_reset_password` | Reset user password | Okta password reset |
 | `observability_get_network_status` | Get network status | Network troubleshooting |
+
+#### 4.1.4 ServiceNow Mock Service (`services/servicenow.py`)
+
+**Features**:
+- **Persistent Storage**: Uses `data/sn_tickets.json` for ticket data persistence
+- **CRUD Operations**: Create, read, update, and delete tickets
+- **Dynamic ID Generation**: Auto-incrementing ticket IDs (INC-0001, INC-0002, etc.)
+- **Ticket Schema**: `ticket_id`, `issue_type`, `user_email`, `description`, `status`, `priority`, `created_at`, `assigned_to`, `resolution`
+- **Status Management**: Supports "New", "In Progress", and "Closed" statuses
+
+**API Functions**:
+| Function | Description |
+|----------|-------------|
+| `create_ticket()` | Create new ticket with optional description |
+| `get_ticket()` | Retrieve ticket by ID |
+| `list_tickets()` | List all tickets (optional status filter) |
+| `assign_ticket()` | Assign ticket to support group |
+| `close_ticket()` | Close ticket with resolution |
+| `update_ticket()` | Update ticket fields |
 
 ### 4.2 Frontend Architecture
 
