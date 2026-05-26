@@ -25,9 +25,10 @@ Project AERO is an intelligent IT support agent that provides efficient IT suppo
 
 ```mermaid
 graph LR
-    A[Frontend\nStreamlit] --> B[Backend\nLangGraph Server]
+    A[Frontend\nStreamlit]
     
-    subgraph Backend Capabilities
+    subgraph Backend
+        B[LangGraph Server]
         C[RAG Module\nIT Knowledge Base]
         D[Web Search\nTavily MCP]
         E[Skills System]
@@ -42,6 +43,7 @@ graph LR
         K[(Log Files)]
     end
     
+    A --> B
     B --> C
     B --> D
     B --> E
