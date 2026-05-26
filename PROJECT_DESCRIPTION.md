@@ -25,25 +25,41 @@ Project AERO is an intelligent IT support agent that provides efficient IT suppo
 
 ```mermaid
 graph LR
-    subgraph Frontend
+    subgraph Frontend Layer
         A[Streamlit App]
     end
-    subgraph Backend
+    subgraph Backend Layer
         B[LangGraph Server]
         C[RAG Module]
         D[MCP Module]
-        E[Enterprise Services]
+        E[Skills Module]
+        F[Enterprise Services]
     end
-    subgraph Storage
-        F[(FAISS Vector DB)]
-        G[(sn_tickets.json)]
+    subgraph Enterprise Services
+        G[ServiceNow]
+        H[Jira]
+        I[Identity]
+        J[Observability]
+    end
+    subgraph Persistence Layer
+        K[(FAISS Vector DB)]
+        L[(sn_tickets.json)]
+        M[(Chat History)]
+        N[(Log Files)]
     end
     A --> B
     B --> C
     B --> D
     B --> E
-    C --> F
-    E --> G
+    B --> F
+    F --> G
+    F --> H
+    F --> I
+    F --> J
+    C --> K
+    G --> L
+    B --> M
+    B --> N
 ```
 
 ### 2.2 Module Responsibilities
