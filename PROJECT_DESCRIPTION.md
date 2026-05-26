@@ -23,40 +23,42 @@ Project AERO is an intelligent IT support agent that provides efficient IT suppo
 
 ### 2.1 Overall Architecture Diagram
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      Frontend Layer (Streamlit)                        │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  UI: Chat Interface, Conversation History, Reasoning            │   │
-│  │  State Management: Session State + File Persistence             │   │
-│  │  Ticket Dashboard: IT Engineer View                             │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                              │                                         │
-│                              ▼                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │              LangGraph API Server                                │   │
-│  │  • Receive client requests                                      │   │
-│  │  • Manage conversation threads                                  │   │
-│  │  • Execute Agent workflow                                       │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                              │                                         │
-│          ┌───────────────────┼───────────────────┬───────────────────┐ │
-│          ▼                   ▼                   ▼                   ▼ │
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐│
-│  │  RAG Module   │  │  MCP Module   │  │  Skills Module│  │  Enterprise   ││
-│  │  • FAISS DB   │  │  • Tavily     │  │  • Dynamic    │  │  Services     ││
-│  │  • Doc Search │  │  • Real-time  │  │    Skill Load │  │  • ServiceNow ││
-│  └───────────────┘  └───────────────┘  └───────────────┘  │  • Jira       ││
-│          │                                           │     │  • Identity   ││
-│          ▼                                           ▼     │  • Observability│
-│  ┌─────────────────────────────────────────────────────────┐  └───────────────┘│
-│  │                    Persistence Layer                     │                   │
-│  │  • Vector Store: FAISS Indexes                          │                   │
-│  │  • Ticket Storage: sn_tickets.json                      │                   │
-│  │  • Chat History: JSON files (role-separated)            │                   │
-│  │  • Logs: Daily log files                                │                   │
-│  └─────────────────────────────────────────────────────────┘                   │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Frontend Layer [Frontend Layer - Streamlit]
+        UI[Chat Interface]
+        History[Conversation History]
+        Reasoning[Reasoning Display]
+        Dashboard[Ticket Dashboard]
+    end
+    
+    subgraph Backend Layer [Backend Layer - LangGraph]
+        Server[LangGraph API Server]
+        
+        subgraph Modules
+            RAG[RAG Module\n• FAISS Vector DB\n• Document Search\n• NVIDIA Rerank]
+            MCP[MCP Module\n• Tavily Web Search\n• Real-time Info]
+            Skills[Skills Module\n• Dynamic Skill Loading\n• Code Review\n• Technical Writing]
+            Enterprise[Enterprise Services\n• ServiceNow\n• Jira\n• Identity\n• Observability]
+        end
+    end
+    
+    subgraph Persistence Layer [Persistence Layer]
+        VectorDB[(FAISS Indexes)]
+        Tickets[(sn_tickets.json)]
+        ChatHistory[(Chat History\nJSON Files)]
+        Logs[(Log Files)]
+    end
+    
+    Frontend Layer --> Server
+    Server --> RAG
+    Server --> MCP
+    Server --> Skills
+    Server --> Enterprise
+    RAG --> VectorDB
+    Enterprise --> Tickets
+    Server --> ChatHistory
+    Server --> Logs
 ```
 
 ### 2.2 Module Responsibilities
