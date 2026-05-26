@@ -35,31 +35,35 @@ graph LR
         E[Skills Module]
         F[Enterprise Services]
     end
+    subgraph External Services
+        G[Tavily Web Search]
+    end
     subgraph Enterprise Services
-        G[ServiceNow]
-        H[Jira]
-        I[Identity]
-        J[Observability]
+        H[ServiceNow]
+        I[Jira]
+        J[Identity]
+        K[Observability]
     end
     subgraph Persistence Layer
-        K[(FAISS Vector DB)]
-        L[(sn_tickets.json)]
-        M[(Chat History)]
-        N[(Log Files)]
+        L[(FAISS Vector DB)]
+        M[(sn_tickets.json)]
+        N[(Chat History)]
+        O[(Log Files)]
     end
     A --> B
     B --> C
     B --> D
     B --> E
     B --> F
-    F --> G
+    D --> G
     F --> H
     F --> I
     F --> J
-    C --> K
-    G --> L
-    A --> M
-    B --> N
+    F --> K
+    C --> L
+    H --> M
+    A --> N
+    B --> O
 ```
 
 ### 2.2 Module Responsibilities
