@@ -24,41 +24,9 @@ Project AERO is an intelligent IT support agent that provides efficient IT suppo
 ### 2.1 Overall Architecture Diagram
 
 ```mermaid
-flowchart TD
-    subgraph Frontend Layer [Frontend Layer - Streamlit]
-        UI[Chat Interface]
-        History[Conversation History]
-        Reasoning[Reasoning Display]
-        Dashboard[Ticket Dashboard]
-    end
-    
-    subgraph Backend Layer [Backend Layer - LangGraph]
-        Server[LangGraph API Server]
-        
-        subgraph Modules
-            RAG[RAG Module\n• FAISS Vector DB\n• Document Search\n• NVIDIA Rerank]
-            MCP[MCP Module\n• Tavily Web Search\n• Real-time Info]
-            Skills[Skills Module\n• Dynamic Skill Loading\n• Code Review\n• Technical Writing]
-            Enterprise[Enterprise Services\n• ServiceNow\n• Jira\n• Identity\n• Observability]
-        end
-    end
-    
-    subgraph Persistence Layer [Persistence Layer]
-        VectorDB[(FAISS Indexes)]
-        Tickets[(sn_tickets.json)]
-        ChatHistory[(Chat History\nJSON Files)]
-        Logs[(Log Files)]
-    end
-    
-    Frontend Layer --> Server
-    Server --> RAG
-    Server --> MCP
-    Server --> Skills
-    Server --> Enterprise
-    RAG --> VectorDB
-    Enterprise --> Tickets
-    Server --> ChatHistory
-    Server --> Logs
+graph TD
+    A --> B
+    B --> C
 ```
 
 ### 2.2 Module Responsibilities
