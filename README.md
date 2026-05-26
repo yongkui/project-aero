@@ -1,4 +1,4 @@
-# Project AERO: AI-Enabled Regional Operations
+# Project AERO: AI-Enabled Regional Operations Platform
 
 Intelligent IT Operations Assistant powered by NVIDIA NIM technology.
 
@@ -54,7 +54,8 @@ project-aero/
 │   └── frontend/          # Streamlit frontend
 │       └── app.py
 ├── data/
-│   └── it-kb-articles/    # IT knowledge base articles
+│   ├── it-kb-articles/    # IT knowledge base articles
+│   └── sn_tickets.json    # ServiceNow ticket data (mock)
 ├── docs/
 │   └── images/            # Documentation images
 ├── skills/                # Agent skills
@@ -105,8 +106,15 @@ In a new terminal:
 streamlit run code/frontend/app.py
 ```
 
+### Alternative: One-Click Start
+
+```bash
+bash start.sh
+```
+
 ## 💡 Features
 
+- **Dual-Role Access Control**: Separate interfaces for employees and IT support engineers
 - **IT Knowledge Base**: Searches internal IT policies and procedures
 - **Web Search**: Real-time information via Tavily MCP
 - **Skills System**: Dynamic expertise loading for specialized tasks
