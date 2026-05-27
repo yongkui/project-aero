@@ -49,3 +49,6 @@ code/backend/.langgraph_api/
 
 # Project documentation (optional - for large/auto-generated docs)
 docs/PROJECT_DESCRIPTION.md
+
+# Environment variables
+.env
